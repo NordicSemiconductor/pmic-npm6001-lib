@@ -1,0 +1,5 @@
+name: npm6001-lib
+
+build:
+  cmake: .
+  kconfig: Kconfig

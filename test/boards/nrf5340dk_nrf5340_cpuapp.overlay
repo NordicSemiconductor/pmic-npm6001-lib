@@ -1,0 +1,109 @@
+/ {
+	zephyr,user {
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>, <&adc 4>, <&adc 5>;
+	};
+};
+
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN0>; /* P0.04 */
+		zephyr,resolution = <12>;
+	};
+
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN1>; /* P0.05 */
+		zephyr,resolution = <12>;
+	};
+
+	channel@2 {
+		reg = <2>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN2>; /* P0.06 */
+		zephyr,resolution = <12>;
+	};
+
+	channel@3 {
+		reg = <3>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN3>; /* P0.07 */
+		zephyr,resolution = <12>;
+	};
+
+	channel@4 {
+		reg = <4>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN4>; /* P0.25 */
+		zephyr,resolution = <12>;
+	};
+
+	channel@5 {
+		reg = <5>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN5>; /* P0.26 */
+		zephyr,resolution = <12>;
+	};
+};
+
+i2c1: &i2c1 {
+	compatible = "nordic,nrf-twim";
+	status = "okay";
+
+	pinctrl-0 = <&i2c1_default_alt_alt>;
+	pinctrl-1 = <&i2c1_sleep_alt_alt>;
+	pinctrl-names = "default", "sleep";
+	clock-frequency = <400000>;
+};
+
+&pinctrl {
+	i2c1_default_alt_alt: i2c1_default_alt_alt {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 1, 2)>,
+				<NRF_PSEL(TWIM_SCL, 1, 3)>;
+			nordic,drive-mode = <NRF_DRIVE_S0D1>;
+			bias-pull-up;
+		};
+	};
+
+	i2c1_sleep_alt_alt: i2c1_sleep_alt_alt {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 1, 2)>,
+				<NRF_PSEL(TWIM_SCL, 1, 3)>;
+			nordic,drive-mode = <NRF_DRIVE_S0D1>;
+			bias-pull-up;
+			low-power-enable;
+		};
+	};
+};
+
+/ {
+	npm6001_irq {
+		compatible = "gpio-keys";
+		n_int_key0: n_int_key_0 {
+			gpios = <&arduino_header 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;	/* D0 */
+			label = "N_INT";
+		};
+	};
+
+	aliases {
+		nint = &n_int_key0;
+	};
+};
