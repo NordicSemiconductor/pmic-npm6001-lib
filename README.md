@@ -2,7 +2,7 @@
 
 This repository contains a sample library for the nPM6001 PMIC.
 
-The library builds on top of the register map and bit value files, and offers a higher level abstraction for configration and control of the nPM6001 PMIC.
+The library builds on top of the register map and bit value files, and offers a higher level abstraction for configuration and control of the nPM6001 PMIC.
 
 Hardware-specific functions for Two-Wire (TWI) communication and GPIO signalling is not implemented here. This functionality must be provided as function pointers given to the library.
 
