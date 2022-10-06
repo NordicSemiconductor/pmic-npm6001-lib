@@ -85,12 +85,12 @@ static int (*twi_write)(const uint8_t *buf, uint8_t len, uint8_t reg_addr);
 
 static int twi_write_multiple(const struct twi_reg_val *buf, size_t count)
 {
-	int bytes_written;
+	int err;
 
 	for (int i = 0; i < count; ++i) {
-		bytes_written = twi_write(&buf[i].val, sizeof(buf[i].val), buf[i].addr);
-		if (bytes_written != sizeof(buf[i].val)) {
-			return -ENODEV;
+		err = twi_write(&buf[i].val, sizeof(buf[i].val), buf[i].addr);
+		if (err) {
+			return err;
 		}
 	}
 
@@ -102,12 +102,11 @@ static int buck12_set_state(enum lib_npm6001_vreg regulator, bool on)
 	const uint8_t reg_addr = NPM6001_REG_ADDR(OVERRIDEPWRUPBUCK);
 	uint8_t reg_val;
 
-	int bytes_read;
-	int bytes_written;
+	int err;
 
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	switch (regulator) {
@@ -131,9 +130,9 @@ static int buck12_set_state(enum lib_npm6001_vreg regulator, bool on)
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_write(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	return 0;
@@ -143,7 +142,7 @@ static int buck012_vout_set(enum lib_npm6001_vreg regulator, uint16_t voltage)
 {
 	struct twi_reg_val reg_vals[5];
 	uint8_t voltage_reg_val;
-	int bytes_read;
+	int err;
 
 	/* Regulator should be forced to PWM mode (if its not already) when updating voltage.
 	 * The same voltage value should be applied to both ULP and PWM registers.
@@ -182,9 +181,9 @@ static int buck012_vout_set(enum lib_npm6001_vreg regulator, uint16_t voltage)
 		return -EINVAL;
 	}
 
-	bytes_read = twi_read(&reg_vals[4].val, sizeof(reg_vals[4].val), reg_vals[4].addr);
-	if (bytes_read != sizeof(reg_vals[4].val)) {
-		return -ENODEV;
+	err = twi_read(&reg_vals[4].val, sizeof(reg_vals[4].val), reg_vals[4].addr);
+	if (err) {
+		return err;
 	}
 
 	reg_vals[0].val = (reg_vals[4].val & DIGITAL_BUCK0CONFPWMMODE_SETFORCEPWM_Msk) |
@@ -204,14 +203,13 @@ static int buck3_vout_set(uint16_t voltage)
 	uint8_t reg_val;
 	uint8_t reg_val_pwmmode;
 	bool pwm_mode_enable;
-	int bytes_written;
-	int bytes_read;
+	int err;
 
 	/* It is recommended to set the BUCK into PWM mode while changing the output voltage. */
 	reg_addr = NPM6001_REG_ADDR(BUCK3CONFPWMMODE);
-	bytes_read = twi_read(&reg_val_pwmmode, sizeof(reg_val_pwmmode), reg_addr);
-	if (bytes_read != sizeof(reg_val_pwmmode)) {
-		return -ENODEV;
+	err = twi_read(&reg_val_pwmmode, sizeof(reg_val_pwmmode), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	if ((reg_val_pwmmode & DIGITAL_BUCK3CONFPWMMODE_SETFORCEPWM_Msk) ==
@@ -225,9 +223,9 @@ static int buck3_vout_set(uint16_t voltage)
 	if (pwm_mode_enable) {
 		reg_val = reg_val_pwmmode | (DIGITAL_BUCK3CONFPWMMODE_SETFORCEPWM_ON
 					     << DIGITAL_BUCK3CONFPWMMODE_SETFORCEPWM_Pos);
-		bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-		if (bytes_written != sizeof(reg_val)) {
-			return -ENODEV;
+		err = twi_write(&reg_val, sizeof(reg_val), reg_addr);
+		if (err) {
+			return err;
 		}
 	}
 
@@ -235,24 +233,24 @@ static int buck3_vout_set(uint16_t voltage)
 	reg_val = ((voltage - LIB_NPM6001_BUCK3_MINV) / LIB_NPM6001_BUCK3_RES) +
 		  DIGITAL_BUCK3VOUT_VOLTAGE_Min;
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_write(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	reg_addr = NPM6001_REG_ADDR(BUCK3SELDAC);
 	reg_val = DIGITAL_BUCK3SELDAC_SELECT_ENABLE << DIGITAL_BUCK3SELDAC_SELECT_Pos;
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_write(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	/* Revert PWM mode if needed */
 	if (pwm_mode_enable) {
-		bytes_written = twi_write(&reg_val_pwmmode, sizeof(reg_val_pwmmode), reg_addr);
-		if (bytes_written != sizeof(reg_val_pwmmode)) {
-			return -ENODEV;
+		err = twi_write(&reg_val_pwmmode, sizeof(reg_val_pwmmode), reg_addr);
+		if (err) {
+			return err;
 		}
 	}
 
@@ -263,7 +261,6 @@ static int ldo0_vout_set(uint16_t voltage)
 {
 	uint8_t reg_addr;
 	uint8_t reg_val;
-	int bytes_written;
 
 	switch (voltage) {
 	case 1800:
@@ -291,12 +288,7 @@ static int ldo0_vout_set(uint16_t voltage)
 
 	reg_addr = NPM6001_REG_ADDR(LDO0VOUT);
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_init(const struct lib_npm6001_platform *hw_funcs)
@@ -322,11 +314,10 @@ int lib_npm6001_init(const struct lib_npm6001_platform *hw_funcs)
 		/* Magic workaround values */
 		const uint8_t reg_addr = 0xAD;
 		const uint8_t reg_val = 0x11;
-		int bytes_written;
 
-		bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-		if (bytes_written != sizeof(reg_val)) {
-			return -ENODEV;
+		err = twi_write(&reg_val, sizeof(reg_val), reg_addr);
+		if (err) {
+			return err;
 		}
 	}
 
@@ -334,12 +325,11 @@ int lib_npm6001_init(const struct lib_npm6001_platform *hw_funcs)
 		const uint8_t reg_addr = NPM6001_REG_ADDR(SWREADY);
 		const uint8_t reg_val =
 			(DIGITAL_SWREADY_SWREADY_READY << DIGITAL_SWREADY_SWREADY_Pos);
-		int bytes_written;
 
 		/* Write SWREADY register to enable use of BUCK mode pins */
-		bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-		if (bytes_written != sizeof(reg_val)) {
-			return -ENODEV;
+		err = twi_write(&reg_val, sizeof(reg_val), reg_addr);
+		if (err) {
+			return err;
 		}
 	}
 
@@ -392,7 +382,6 @@ int lib_npm6001_vreg_disable(enum lib_npm6001_vreg regulator)
 {
 	uint8_t reg_addr;
 	uint8_t reg_val;
-	int bytes_written;
 
 	switch (regulator) {
 	case LIB_NPM6001_BUCK1:
@@ -415,20 +404,14 @@ int lib_npm6001_vreg_disable(enum lib_npm6001_vreg regulator)
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_vreg_buck_mode_set(enum lib_npm6001_vreg regulator, enum lib_npm6001_vreg_mode mode)
 {
 	uint8_t reg_addr;
 	uint8_t reg_val;
-	int bytes_written;
-	int bytes_read;
+	int err;
 
 	switch (regulator) {
 	case LIB_NPM6001_BUCK0:
@@ -447,9 +430,9 @@ int lib_npm6001_vreg_buck_mode_set(enum lib_npm6001_vreg regulator, enum lib_npm
 		return -EINVAL;
 	}
 
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	reg_val &= ~DIGITAL_BUCK0CONFPWMMODE_SETFORCEPWM_Msk;
@@ -467,19 +450,13 @@ int lib_npm6001_vreg_buck_mode_set(enum lib_npm6001_vreg regulator, enum lib_npm
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_vreg_mode_pin_enable(enum lib_npm6001_vreg regulator, enum lib_npm6001_mode_pin pin)
 {
 	uint8_t reg_addr;
 	uint8_t reg_val;
-	int bytes_written;
 
 	switch (regulator) {
 	case LIB_NPM6001_BUCK0:
@@ -515,12 +492,7 @@ int lib_npm6001_vreg_mode_pin_enable(enum lib_npm6001_vreg regulator, enum lib_n
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_mode_pin_cfg(enum lib_npm6001_mode_pin pin,
@@ -530,17 +502,16 @@ int lib_npm6001_mode_pin_cfg(enum lib_npm6001_mode_pin pin,
 	uint8_t reg_addr;
 	uint8_t padtype;
 	uint8_t pulldown;
-	int bytes_written;
-	int bytes_read;
+	int err;
 
 	if (cfg == NULL) {
 		return -EINVAL;
 	}
 
 	reg_addr = NPM6001_REG_ADDR(BUCKMODEPADCONF);
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	switch (cfg->pad_type) {
@@ -585,12 +556,7 @@ int lib_npm6001_mode_pin_cfg(enum lib_npm6001_mode_pin pin,
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_vreg_voltage_set(enum lib_npm6001_vreg regulator, uint16_t voltage)
@@ -662,7 +628,6 @@ int lib_npm6001_thermal_sensor_enable(enum lib_npm6001_thermal_sensor sensor)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
 
 	switch (sensor) {
 	case LIB_NPM6001_THERMAL_SENSOR_WARNING:
@@ -679,19 +644,13 @@ int lib_npm6001_thermal_sensor_enable(enum lib_npm6001_thermal_sensor sensor)
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_thermal_sensor_disable(enum lib_npm6001_thermal_sensor sensor)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
 
 	switch (sensor) {
 	case LIB_NPM6001_THERMAL_SENSOR_WARNING:
@@ -708,25 +667,19 @@ int lib_npm6001_thermal_sensor_disable(enum lib_npm6001_thermal_sensor sensor)
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_thermal_sensor_dyn_pwrup_enable(enum lib_npm6001_thermal_sensor sensor)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
-	int bytes_read;
+	int err;
 
 	reg_addr = NPM6001_REG_ADDR(THDYNPOWERUP);
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	switch (sensor) {
@@ -744,29 +697,23 @@ int lib_npm6001_thermal_sensor_dyn_pwrup_enable(enum lib_npm6001_thermal_sensor 
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_thermal_sensor_dyn_pwrup_trig(const enum lib_npm6001_vreg *vreg, uint8_t len)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
-	int bytes_read;
+	int err;
 
 	if (vreg == NULL || len == 0) {
 		return -EINVAL;
 	}
 
 	reg_addr = NPM6001_REG_ADDR(THDYNPOWERUP);
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	for (int i = 0; i < len; ++i) {
@@ -796,25 +743,19 @@ int lib_npm6001_thermal_sensor_dyn_pwrup_trig(const enum lib_npm6001_vreg *vreg,
 		}
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_thermal_sensor_dyn_pwrup_disable(enum lib_npm6001_thermal_sensor sensor)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
-	int bytes_read;
+	int err;
 
 	reg_addr = NPM6001_REG_ADDR(THDYNPOWERUP);
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	switch (sensor) {
@@ -832,19 +773,13 @@ int lib_npm6001_thermal_sensor_dyn_pwrup_disable(enum lib_npm6001_thermal_sensor
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_int_enable(enum lib_npm6001_int interrupt)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
 
 	switch (interrupt) {
 	case LIB_NPM6001_INT_THERMAL_WARNING:
@@ -868,19 +803,13 @@ int lib_npm6001_int_enable(enum lib_npm6001_int interrupt)
 
 	reg_addr = NPM6001_REG_ADDR(INTENSET0);
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_int_disable(enum lib_npm6001_int interrupt)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
 
 	switch (interrupt) {
 	case LIB_NPM6001_INT_THERMAL_WARNING:
@@ -904,20 +833,14 @@ int lib_npm6001_int_disable(enum lib_npm6001_int interrupt)
 
 	reg_addr = NPM6001_REG_ADDR(INTENCLR0);
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_int_read(enum lib_npm6001_int *interrupt)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_read;
-	int bytes_written;
+	int err;
 
 	if (interrupt == NULL) {
 		return -EINVAL;
@@ -925,9 +848,9 @@ int lib_npm6001_int_read(enum lib_npm6001_int *interrupt)
 
 	reg_addr = NPM6001_REG_ADDR(INTPEND0);
 
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	/* Check source of interrupt and clear, one at a time. */
@@ -957,19 +880,13 @@ int lib_npm6001_int_read(enum lib_npm6001_int *interrupt)
 
 	reg_val = 0;
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_gpio_cfg(enum lib_npm6001_gpio pin, const struct lib_npm6001_gpio_cfg *cfg)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
 
 	if (cfg == NULL) {
 		return -EINVAL;
@@ -1048,19 +965,13 @@ int lib_npm6001_gpio_cfg(enum lib_npm6001_gpio pin, const struct lib_npm6001_gpi
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_gpio_set(enum lib_npm6001_gpio pin)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
 
 	reg_addr = NPM6001_REG_ADDR(GPIOOUTSET);
 
@@ -1081,19 +992,13 @@ int lib_npm6001_gpio_set(enum lib_npm6001_gpio pin)
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_gpio_clr(enum lib_npm6001_gpio pin)
 {
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_written;
 
 	reg_addr = NPM6001_REG_ADDR(GPIOOUTCLR);
 
@@ -1114,27 +1019,22 @@ int lib_npm6001_gpio_clr(enum lib_npm6001_gpio pin)
 		return -EINVAL;
 	}
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_gpio_read(enum lib_npm6001_gpio pin, bool *set)
 {
 	const uint8_t reg_addr = NPM6001_REG_ADDR(GPIOIN);
 	uint8_t reg_val;
-	int bytes_read;
+	int err;
 
 	if (set == NULL) {
 		return -EINVAL;
 	}
 
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	switch (pin) {
@@ -1193,14 +1093,8 @@ int lib_npm6001_watchdog_kick(void)
 {
 	const uint8_t reg_addr = NPM6001_REG_ADDR(WDKICK);
 	const uint8_t reg_val = WDKICK_REG_VALUE;
-	int bytes_written;
 
-	bytes_written = twi_write(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_written == sizeof(reg_val)) {
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return twi_write(&reg_val, sizeof(reg_val), reg_addr);
 }
 
 int lib_npm6001_hibernate(uint32_t timer_val)
@@ -1223,7 +1117,7 @@ int lib_npm6001_hibernate(uint32_t timer_val)
 	};
 	uint8_t reg_val;
 	uint8_t reg_addr;
-	int bytes_read;
+	int err;
 
 	if (timer_val == 0 || timer_val > 0x00FFFFFF) {
 		return -EINVAL;
@@ -1233,9 +1127,9 @@ int lib_npm6001_hibernate(uint32_t timer_val)
 	 * If yes, it must be disabled to ensure hibernation duration is set properly.
 	 */
 	reg_addr = NPM6001_REG_ADDR(WDARMEDVALUE);
-	bytes_read = twi_read(&reg_val, sizeof(reg_val), reg_addr);
-	if (bytes_read != sizeof(reg_val)) {
-		return -ENODEV;
+	err = twi_read(&reg_val, sizeof(reg_val), reg_addr);
+	if (err) {
+		return err;
 	}
 
 	if ((reg_val & DIGITAL_WDARMEDVALUE_VALUE_Msk) ==

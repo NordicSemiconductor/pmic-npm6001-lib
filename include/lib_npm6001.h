@@ -297,7 +297,7 @@ struct lib_npm6001_platform {
 	 * @param[in] len Number of bytes to read.
 	 * @param[in] reg_addr Register address.
 	 *
-	 * @return Number of bytes read.
+	 * @return 0 if successful. Otherwise an error code.
 	 */
 	int (*lib_npm6001_twi_read)(uint8_t *buf, uint8_t len, uint8_t reg_addr);
 
@@ -308,7 +308,7 @@ struct lib_npm6001_platform {
 	 * @param[in] len Number of bytes to write.
 	 * @param[in] reg_addr Register address.
 	 *
-	 * @return Number of bytes written.
+	 * @return 0 if successful. Otherwise an error code.
 	 */
 	int (*lib_npm6001_twi_write)(const uint8_t *buf, uint8_t len, uint8_t reg_addr);
 };

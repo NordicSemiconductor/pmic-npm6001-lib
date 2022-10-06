@@ -96,18 +96,9 @@ static int lib_npm6001_platform_init(void)
 
 static int lib_npm6001_twi_read(uint8_t *buf, uint8_t len, uint8_t reg_addr)
 {
-	int err;
-
-	err = i2c_write_read(i2c_dev, LIB_NPM6001_TWI_ADDR,
+	return i2c_write_read(i2c_dev, LIB_NPM6001_TWI_ADDR,
 		&reg_addr, sizeof(reg_addr),
 		buf, len);
-
-	if (err == 0) {
-		/* Success: return number of bytes read */
-		return len;
-	} else {
-		return -1;
-	}
 }
 
 static int lib_npm6001_twi_write(const uint8_t *buf, uint8_t len, uint8_t reg_addr)
@@ -116,15 +107,8 @@ static int lib_npm6001_twi_write(const uint8_t *buf, uint8_t len, uint8_t reg_ad
 		{.buf = &reg_addr, .len = sizeof(reg_addr), .flags = I2C_MSG_WRITE},
 		{.buf = (uint8_t *)buf, .len = len, .flags = I2C_MSG_WRITE | I2C_MSG_STOP},
 	};
-	int err;
 
-	err = i2c_transfer(i2c_dev, &msgs[0], ARRAY_SIZE(msgs), LIB_NPM6001_TWI_ADDR);
-	if (err == 0) {
-		/* Success: return number of bytes written */
-		return len;
-	} else {
-		return -1;
-	}
+	return i2c_transfer(i2c_dev, &msgs[0], ARRAY_SIZE(msgs), LIB_NPM6001_TWI_ADDR);
 }
 
 static void n_int_irq_handler(const struct device *port,
@@ -295,6 +279,12 @@ static void test_lib_npm6001_vreg_off(void)
 	int voltage_rate[6];
 	int err;
 
+	err = lib_npm6001_vreg_disable(LIB_NPM6001_BUCK1);
+	zassert_ok(err, "Failed to disable BUCK1");
+
+	err = lib_npm6001_vreg_disable(LIB_NPM6001_BUCK2);
+	zassert_ok(err, "Failed to disable BUCK2");
+
 	err = lib_npm6001_vreg_disable(LIB_NPM6001_BUCK3);
 	zassert_ok(err, "Failed to disable BUCK3");
 
@@ -306,12 +296,6 @@ static void test_lib_npm6001_vreg_off(void)
 
 	err = lib_npm6001_vreg_disable(LIB_NPM6001_BUCK0);
 	zassert_equal(err, -EINVAL, "BUCK0 cannot be turned off");
-
-	err = lib_npm6001_vreg_disable(LIB_NPM6001_BUCK1);
-	zassert_equal(err, -EINVAL, "BUCK1 cannot be turned off");
-
-	err = lib_npm6001_vreg_disable(LIB_NPM6001_BUCK2);
-	zassert_equal(err, -EINVAL, "BUCK2 cannot be turned off");
 
 	/* It can take a while for voltages to discharge.
 	 * Instead of waiting for several minutes,
@@ -330,6 +314,8 @@ static void test_lib_npm6001_vreg_off(void)
 		PRINT("voltage_rate[%d]=%d\n", i, voltage_rate[i]);
 	}
 	
+	zassert_true(voltage_rate[VREG_BUCK1_VOLTAGE] < -VREG_MEAS_TOLERANCE, "BUCK1 voltage drop rate too slow");
+	zassert_true(voltage_rate[VREG_BUCK2_VOLTAGE] < -VREG_MEAS_TOLERANCE, "BUCK2 voltage drop rate too slow");
 	zassert_true(voltage_rate[VREG_BUCK3_VOLTAGE] < -VREG_MEAS_TOLERANCE, "BUCK3 voltage drop rate too slow");
 	zassert_true(voltage_rate[VREG_LDO0_VOLTAGE] < -VREG_MEAS_TOLERANCE, "LDO0 voltage drop rate too slow");
 	zassert_true(voltage_rate[VREG_LDO1_VOLTAGE] < -VREG_MEAS_TOLERANCE, "LDO1 voltage drop rate too slow");
